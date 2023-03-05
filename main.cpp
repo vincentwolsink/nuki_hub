@@ -13,6 +13,7 @@
 #include "Logger.h"
 #include "Config.h"
 #include "RestartReason.h"
+#include "SerialInterface.h"
 
 Network* network = nullptr;
 NetworkLock* networkLock = nullptr;
@@ -24,10 +25,12 @@ NukiOpenerWrapper* nukiOpener = nullptr;
 PresenceDetection* presenceDetection = nullptr;
 Preferences* preferences = nullptr;
 EthServer* ethServer = nullptr;
+SerialInterface serialInterface;
 
 bool lockEnabled = false;
 bool openerEnabled = false;
 unsigned long restartTs = (2^32) - 5 * 60000;
+bool presenceDetectionEnabled = false;
 
 RTC_NOINIT_ATTR int restartReason;
 RTC_NOINIT_ATTR uint64_t restartReasonValid;
@@ -35,6 +38,8 @@ RTC_NOINIT_ATTR uint64_t restartReasonValid;
 TaskHandle_t networkTaskHandle = nullptr;
 TaskHandle_t nukiTaskHandle = nullptr;
 TaskHandle_t presenceDetectionTaskHandle = nullptr;
+
+//char
 
 void networkTask(void *pvParameters)
 {
@@ -96,10 +101,19 @@ void presenceDetectionTask(void *pvParameters)
 {
     while(true)
     {
-        presenceDetection->update();
+        if(presenceDetectionEnabled)
+        {
+            presenceDetection->update();
+        }
+        unsigned long timeout = millis() + 3000;
+
+        while(millis() < timeout)
+        {
+            serialInterface.update();
+            delay(200);
+        }
     }
 }
-
 
 void setupTasks()
 {
@@ -107,7 +121,7 @@ void setupTasks()
 
     xTaskCreatePinnedToCore(networkTask, "ntw", 8192, NULL, 3, &networkTaskHandle, 1);
     xTaskCreatePinnedToCore(nukiTask, "nuki", 3328, NULL, 2, &nukiTaskHandle, 1);
-    xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 896, NULL, 5, &presenceDetectionTaskHandle, 1);
+    presenceDetectionEnabled = true;
 }
 
 uint32_t getRandomId()
@@ -142,6 +156,8 @@ bool initPreferences()
 {
     preferences = new Preferences();
     preferences->begin("nukihub", false);
+
+    xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 896, NULL, 5, &presenceDetectionTaskHandle, 1);
 
     bool firstStart = !preferences->getBool(preference_started_before);
 

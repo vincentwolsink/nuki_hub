@@ -38,8 +38,6 @@ void PresenceDetection::initialize()
 
 void PresenceDetection::update()
 {
-    delay(3000);
-
     if(_timeout < 0) return;
     memset(_csv, 0, presence_detection_buffer_size);
 
@@ -67,9 +65,6 @@ void PresenceDetection::update()
     }
 
     _csv[_csvIndex-1] = 0x00;
-
-//    Log->print("Devices found: ");
-//    Log->println(_devices.size());
     _network->publishPresenceDetection(_csv);
 }
 

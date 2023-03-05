@@ -62,6 +62,7 @@ file(GLOB SRCFILES
         WebCfgServer.cpp
         PresenceDetection.cpp
         PreferencesKeys.h
+        SerialInterface.cpp
         Gpio.cpp
         Logger.cpp
         RestartReason.h
