@@ -25,7 +25,7 @@ NukiOpenerWrapper* nukiOpener = nullptr;
 PresenceDetection* presenceDetection = nullptr;
 Preferences* preferences = nullptr;
 EthServer* ethServer = nullptr;
-SerialInterface serialInterface;
+SerialInterface* serialInterface = nullptr;
 
 bool lockEnabled = false;
 bool openerEnabled = false;
@@ -109,7 +109,7 @@ void presenceDetectionTask(void *pvParameters)
 
         while(millis() < timeout)
         {
-            serialInterface.update();
+            serialInterface->update();
             delay(200);
         }
     }
@@ -157,8 +157,6 @@ bool initPreferences()
     preferences = new Preferences();
     preferences->begin("nukihub", false);
 
-    xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 896, NULL, 5, &presenceDetectionTaskHandle, 1);
-
     bool firstStart = !preferences->getBool(preference_started_before);
 
     if(firstStart)
@@ -183,6 +181,9 @@ void setup()
     Log->print(F("NUKI Hub version ")); Log->println(NUKI_HUB_VERSION);
 
     bool firstStart = initPreferences();
+
+    serialInterface = new SerialInterface(preferences);
+    xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 2048, NULL, 5, &presenceDetectionTaskHandle, 1);
 
     if(preferences->getInt(preference_restart_timer) > 0)
     {
