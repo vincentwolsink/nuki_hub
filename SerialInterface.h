@@ -19,6 +19,7 @@ private:
     char _buffer[100] = {0};
     uint8_t _index = 0;
     unsigned long _authenticatedTs = 0;
+    unsigned long _lastAuthTs = 0;
 
     std::vector<String> _tokens;
 

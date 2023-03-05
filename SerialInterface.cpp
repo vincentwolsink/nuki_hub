@@ -84,6 +84,8 @@ void SerialInterface::parse()
         return;
     }
 
+    _authenticatedTs = millis() + 3 * 60 * 1000;
+
     // prevent unknown command output
     if(_tokens.size() >= 1 && _tokens[0] == "auth")
     {
@@ -96,7 +98,12 @@ void SerialInterface::parse()
         delay(200);
         restartEsp(RestartReason::RequestedViaSerialInterface);
     }
-    if(_tokens.size() >= 3 && _tokens[0] == "nwhw")
+    if(_tokens.size() >= 1 && _tokens[0] == "clearall")
+    {
+        _preferences->clear();
+        Serial.println(F("Cleared all settings"));
+    }
+    else if(_tokens.size() >= 3 && _tokens[0] == "nwhw")
     {
         _preferences->putInt(preference_network_hardware, _tokens[1].toInt());
         _preferences->putInt(preference_network_hardware_gpio, _tokens[2].toInt());
@@ -145,15 +152,22 @@ bool SerialInterface::isAuthenticated()
     }
     if(_tokens.size() >= 1 && _tokens[0] == "auth")
     {
+        if(_lastAuthTs > 0 && millis() < _lastAuthTs)
+        {
+            Serial.println(F("Authentication retry too fast."));
+            return false;
+        }
+
         if (_tokens.size() >= 3 && _preferences->getString(preference_cred_user) == _tokens[1] && _preferences->getString(preference_cred_password) == _tokens[2])
         {
             Serial.println(F("Authentication successful"));
-            _authenticatedTs = millis() + 5 * 60 * 1000;
+            _authenticatedTs = millis() + 3 * 60 * 1000;
             return true;
         }
         else
         {
             Serial.println(F("Authentication failed"));
+            _lastAuthTs = _lastAuthTs + 3000;
         }
     }
     return false;
