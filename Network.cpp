@@ -32,6 +32,8 @@ Network::Network(Preferences *preferences, const String& maintenancePathPrefix)
 
 void Network::setupDevice()
 {
+    _ipConfiguration = new IPConfiguration(_preferences);
+
     int hardwareDetect = _preferences->getInt(preference_network_hardware);
     int hardwareDetectGpio = _preferences->getInt(preference_network_hardware_gpio);
 
@@ -83,6 +85,10 @@ void Network::setupDevice()
                 Log->println(F("WT32-ETH01"));
                 _networkDeviceType = NetworkDeviceType::WT32_LAN8720;
                 break;
+            case 6:
+                Log->println(F("M5STACK PoESP32 Unit"));
+                _networkDeviceType = NetworkDeviceType::M5STACK_PoESP32_Unit;
+                break;
             default:
                 Log->println(F("Unknown hardware selected, falling back to Wifi."));
                 _networkDeviceType = NetworkDeviceType::WiFi;
@@ -93,19 +99,22 @@ void Network::setupDevice()
     switch (_networkDeviceType)
     {
         case NetworkDeviceType::W5500:
-            _device = new W5500Device(_hostname, _preferences, hardwareDetect);
+            _device = new W5500Device(_hostname, _preferences, _ipConfiguration, hardwareDetect);
             break;
         case NetworkDeviceType::Olimex_LAN8720:
-            _device = new EthLan8720Device(_hostname, _preferences, "Olimex (LAN8720)", ETH_PHY_ADDR, 12, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLOCK_GPIO17_OUT);
+            _device = new EthLan8720Device(_hostname, _preferences, _ipConfiguration, "Olimex (LAN8720)", ETH_PHY_ADDR, 12, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLOCK_GPIO17_OUT);
             break;
         case NetworkDeviceType::WT32_LAN8720:
-            _device = new EthLan8720Device(_hostname, _preferences, "WT32-ETH01", 1, 16);
+            _device = new EthLan8720Device(_hostname, _preferences, _ipConfiguration, "WT32-ETH01", 1, 16);
+            break;
+        case NetworkDeviceType::M5STACK_PoESP32_Unit:
+            _device = new EthLan8720Device(_hostname, _preferences, _ipConfiguration, "M5STACK PoESP32 Unit", 1, 5, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_IP101);
             break;
         case NetworkDeviceType::WiFi:
-            _device = new WifiDevice(_hostname, _preferences);
+            _device = new WifiDevice(_hostname, _preferences, _ipConfiguration);
             break;
         default:
-            _device = new WifiDevice(_hostname, _preferences);
+            _device = new WifiDevice(_hostname, _preferences, _ipConfiguration);
             break;
     }
 
@@ -133,7 +142,7 @@ void Network::initialize()
     }
     if(_rssiPublishInterval == 0)
     {
-        _rssiPublishInterval = -1;
+        _rssiPublishInterval = 60;
         _preferences->putInt(preference_rssi_publish_interval, _rssiPublishInterval);
     }
     strcpy(_hostnameArr, _hostname.c_str());
@@ -637,6 +646,10 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
                              {{"pl_on", "1"},
                               {"pl_off", "0"}});
         }
+        else
+        {
+            removeHassTopic("binary_sensor", "keypad_battery_low", uidString);
+        }
 
         // Battery voltage
         publishHassTopic("sensor",
@@ -987,6 +1000,27 @@ void Network::publishHassTopic(const String& mqttDeviceType,
     }
 }
 
+
+void Network::removeHassTopic(const String& mqttDeviceType, const String& mattDeviceName, const String& uidString)
+{
+    String discoveryTopic = _preferences->getString(preference_mqtt_hass_discovery);
+
+    if (discoveryTopic != "")
+    {
+        String path = discoveryTopic;
+        path.concat("/");
+        path.concat(mqttDeviceType);
+        path.concat("/");
+        path.concat(uidString);
+        path.concat("/");
+        path.concat(mattDeviceName);
+        path.concat("/config");
+
+        _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, "");
+    }
+}
+
+
 void Network::removeHASSConfig(char* uidString)
 {
     String discoveryTopic = _preferences->getString(preference_mqtt_hass_discovery);
@@ -1047,6 +1081,11 @@ void Network::removeHASSConfig(char* uidString)
         path.concat("/bluetooth_signal_strength/config");
         _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, "");
     }
+}
+
+void Network::removeHASSConfigDoorSensor(char *deviceType, const char *baseTopic, char *name, char *uidString)
+{
+    removeHassTopic("binary_sensor", "door_sensor", uidString);
 }
 
 void Network::publishPresenceDetection(char *csv)

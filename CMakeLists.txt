@@ -40,7 +40,7 @@ include_directories(${PROJECT_NAME}
         lib/ArduinoJson/src
 )
 
-file(GLOB SRCFILES
+set(SRCFILES
         Pins.h
         Config.h
         Network.cpp
@@ -53,6 +53,7 @@ file(GLOB SRCFILES
         networkDevices/EthLan8720Device.cpp
         networkDevices/ClientSyncW5500.cpp
         networkDevices/espMqttClientW5500.cpp
+        networkDevices/IPConfiguration.cpp
         QueryCommand.h
         NukiWrapper.cpp
         NukiOpenerWrapper.cpp

@@ -34,6 +34,7 @@ bool presenceDetectionEnabled = false;
 
 RTC_NOINIT_ATTR int restartReason;
 RTC_NOINIT_ATTR uint64_t restartReasonValid;
+RestartReason currentRestartReason = RestartReason::NotApplicable;
 
 TaskHandle_t networkTaskHandle = nullptr;
 TaskHandle_t nukiTaskHandle = nullptr;
@@ -181,6 +182,7 @@ void setup()
     Log->print(F("NUKI Hub version ")); Log->println(NUKI_HUB_VERSION);
 
     bool firstStart = initPreferences();
+    initializeRestartReason();
 
     serialInterface = new SerialInterface(preferences);
     xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 2048, NULL, 5, &presenceDetectionTaskHandle, 1);

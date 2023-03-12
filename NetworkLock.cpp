@@ -3,7 +3,6 @@
 #include "Arduino.h"
 #include "MqttTopics.h"
 #include "PreferencesKeys.h"
-#include "Pins.h"
 #include "Logger.h"
 #include "RestartReason.h"
 
@@ -398,6 +397,11 @@ void NetworkLock::publishCommandResult(const char *resultStr)
     publishString(mqtt_topic_lock_action_command_result, resultStr);
 }
 
+void NetworkLock::publishLockstateCommandResult(const char *resultStr)
+{
+    publishString(mqtt_topic_query_lockstate_command_result, resultStr);
+}
+
 void NetworkLock::publishBatteryReport(const NukiLock::BatteryReport& batteryReport)
 {
     publishFloat(mqtt_topic_battery_voltage, (float)batteryReport.batteryVoltage / 1000.0);
@@ -520,6 +524,10 @@ void NetworkLock::publishHASSConfig(char *deviceType, const char *baseTopic, cha
     if(hasDoorSensor)
     {
         _network->publishHASSConfigDoorSensor(deviceType, baseTopic, name, uidString, lockAction, unlockAction, openAction, lockedState, unlockedState);
+    }
+    else
+    {
+        _network->removeHASSConfigDoorSensor(deviceType, baseTopic, name, uidString);
     }
     _network->publishHASSWifiRssiConfig(deviceType, baseTopic, name, uidString);
     _network->publishHASSBleRssiConfig(deviceType, baseTopic, name, uidString);

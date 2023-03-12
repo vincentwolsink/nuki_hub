@@ -5,13 +5,15 @@
 #include <map>
 #include "networkDevices/NetworkDevice.h"
 #include "MqttReceiver.h"
+#include "networkDevices/IPConfiguration.h"
 
 enum class NetworkDeviceType
 {
     WiFi,
     W5500,
     Olimex_LAN8720,
-    WT32_LAN8720
+    WT32_LAN8720,
+    M5STACK_PoESP32_Unit
 };
 
 #define JSON_BUFFER_SIZE 1024
@@ -47,6 +49,7 @@ public:
     void publishHASSWifiRssiConfig(char* deviceType, const char* baseTopic, char* name, char* uidString);
     void publishHASSBleRssiConfig(char* deviceType, const char* baseTopic, char* name, char* uidString);
     void removeHASSConfig(char* uidString);
+    void removeHASSConfigDoorSensor(char* deviceType, const char* baseTopic, char* name, char* uidString);
 
     void clearWifiFallback();
 
@@ -85,6 +88,8 @@ private:
                           std::vector<std::pair<char*, char*>> additionalEntries = {}
                           );
 
+    void removeHassTopic(const String& mqttDeviceType, const String& mattDeviceName, const String& uidString);
+
     void onMqttConnect(const bool& sessionPresent);
     void onMqttDisconnect(const espMqttClientTypes::DisconnectReason& reason);
 
@@ -92,6 +97,7 @@ private:
 
     static Network* _inst;
     Preferences* _preferences;
+    IPConfiguration* _ipConfiguration = nullptr;
     String _hostname;
     char _hostnameArr[101] = {0};
     NetworkDevice* _device = nullptr;

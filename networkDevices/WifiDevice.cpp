@@ -8,8 +8,8 @@
 
 RTC_NOINIT_ATTR char WiFiDevice_reconfdetect[17];
 
-WifiDevice::WifiDevice(const String& hostname, Preferences* _preferences)
-: NetworkDevice(hostname)
+WifiDevice::WifiDevice(const String& hostname, Preferences* _preferences, const IPConfiguration* ipConfiguration)
+: NetworkDevice(hostname, ipConfiguration)
 {
     _startAp = strcmp(WiFiDevice_reconfdetect, "reconfigure_wifi") == 0;
 
@@ -25,7 +25,7 @@ WifiDevice::WifiDevice(const String& hostname, Preferences* _preferences)
     {
         Log->println(F("MQTT over TLS."));
         Log->println(_ca);
-        _mqttClientSecure = new espMqttClientSecure(false);
+        _mqttClientSecure = new espMqttClientSecure(espMqttClientTypes::UseInternalTask::NO);
         _mqttClientSecure->setCACert(_ca);
         if(crtLength > 1 && keyLength > 1) // length is 1 when empty
         {
@@ -38,7 +38,7 @@ WifiDevice::WifiDevice(const String& hostname, Preferences* _preferences)
     } else
     {
         Log->println(F("MQTT without TLS."));
-        _mqttClient = new espMqttClient(false);
+        _mqttClient = new espMqttClient(espMqttClientTypes::UseInternalTask::NO);
     }
 
     if(_preferences->getBool(preference_mqtt_log_enabled))
@@ -68,6 +68,11 @@ void WifiDevice::initialize()
     _wm.setShowInfoUpdate(false);
     _wm.setMenu(wm_menu);
     _wm.setHostname(_hostname);
+
+    if(!_ipConfiguration->dhcpEnabled())
+    {
+        _wm.setSTAStaticIPConfig(_ipConfiguration->ipAddress(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet(), _ipConfiguration->dnsServer());
+    }
 
     _wm.setAPCallback(clearRtcInitVar);
 

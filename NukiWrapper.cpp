@@ -275,7 +275,7 @@ bool NukiWrapper::isPinSet()
 
 void NukiWrapper::setPin(const uint16_t pin)
 {
-        _nukiLock.saveSecurityPincode(pin);
+    _nukiLock.saveSecurityPincode(pin);
 }
 
 void NukiWrapper::unpair()
@@ -288,6 +288,12 @@ void NukiWrapper::updateKeyTurnerState()
 {
     Log->print(F("Querying lock state: "));
     Nuki::CmdResult result =_nukiLock.requestKeyTurnerState(&_keyTurnerState);
+
+    char resultStr[15];
+    memset(&resultStr, 0, sizeof(resultStr));
+    NukiLock::cmdResultToString(result, resultStr);
+    _network->publishLockstateCommandResult(resultStr);
+
     if(result != Nuki::CmdResult::Success)
     {
         _retryLockstateCount++;
@@ -609,12 +615,12 @@ const NukiLock::KeyTurnerState &NukiWrapper::keyTurnerState()
     return _keyTurnerState;
 }
 
-const bool NukiWrapper::isPaired()
+const bool NukiWrapper::isPaired() const
 {
     return _paired;
 }
 
-const bool NukiWrapper::hasKeypad()
+const bool NukiWrapper::hasKeypad() const
 {
     return _hasKeypad;
 }
@@ -655,17 +661,16 @@ void NukiWrapper::setupHASS()
     char uidString[20];
     itoa(_nukiConfig.nukiId, uidString, 16);
 
-    _network->publishHASSConfig("SmartLock", baseTopic.c_str(),(char*)_nukiConfig.name, uidString, _hasKeypad, hasDoorSensor(), "lock", "unlock", "unlatch", "locked", "unlocked");
+    _network->publishHASSConfig("SmartLock", baseTopic.c_str(),(char*)_nukiConfig.name, uidString, hasDoorSensor(), _hasKeypad, "lock", "unlock", "unlatch", "locked", "unlocked");
     _hassSetupCompleted = true;
 
     Log->println("HASS setup for lock completed.");
 }
 
-bool NukiWrapper::hasDoorSensor()
+bool NukiWrapper::hasDoorSensor() const
 {
     return _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorClosed ||
            _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorOpened ||
-           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorStateUnknown ||
            _keyTurnerState.doorSensorState == Nuki::DoorSensorState::Calibrating;;
 }
 

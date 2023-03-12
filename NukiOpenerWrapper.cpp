@@ -272,6 +272,12 @@ void NukiOpenerWrapper::updateKeyTurnerState()
 {
     Log->print(F("Querying opener state: "));
     Nuki::CmdResult result =_nukiOpener.requestOpenerState(&_keyTurnerState);
+
+    char resultStr[15];
+    memset(&resultStr, 0, sizeof(resultStr));
+    NukiOpener::cmdResultToString(result, resultStr);
+    _network->publishLockstateCommandResult(resultStr);
+
     if(result != Nuki::CmdResult::Success)
     {
         _retryLockstateCount++;
@@ -583,12 +589,12 @@ const NukiOpener::OpenerState &NukiOpenerWrapper::keyTurnerState()
     return _keyTurnerState;
 }
 
-const bool NukiOpenerWrapper::isPaired()
+const bool NukiOpenerWrapper::isPaired() const
 {
     return _paired;
 }
 
-const bool NukiOpenerWrapper::hasKeypad()
+const bool NukiOpenerWrapper::hasKeypad() const
 {
     return _hasKeypad;
 }
