@@ -113,6 +113,23 @@ void SerialInterface::parse()
         _preferences->putString(preference_network_preload_ssid, _tokens[1]);
         _preferences->putString(preference_network_preload_psk, _tokens[2]);
     }
+    else if(_tokens.size() >= 2 && _tokens[0] == "dhcp")
+    {
+        _preferences->putBool(preference_ip_dhcp_enabled, _tokens[1].toInt() > 0);
+    }
+    else if(_tokens.size() >= 3 && _tokens[0] == "ip")
+    {
+        _preferences->putString(preference_ip_address, _tokens[1]);
+        _preferences->putString(preference_ip_subnet, _tokens[2]);
+    }
+    else if(_tokens.size() >= 2 && _tokens[0] == "gw")
+    {
+        _preferences->putString(preference_ip_gateway, _tokens[1]);
+    }
+    else if(_tokens.size() >= 2 && _tokens[0] == "dns")
+    {
+        _preferences->putString(preference_ip_dns_server, _tokens[1]);
+    }
     else if(_tokens.size() >= 3 && _tokens[0] == "mqttbroker")
     {
         _preferences->putString(preference_mqtt_broker, _tokens[1]);
