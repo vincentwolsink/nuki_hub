@@ -98,6 +98,10 @@ void SerialInterface::parse()
         delay(200);
         restartEsp(RestartReason::RequestedViaSerialInterface);
     }
+    if(_tokens.size() >= 1 && _tokens[0] == "serialoff")
+    {
+        _preferences->putUChar(preference_serial_interface_enabled, 1);;
+    }
     if(_tokens.size() >= 1 && _tokens[0] == "clearall")
     {
         _preferences->clear();

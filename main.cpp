@@ -184,8 +184,19 @@ void setup()
     bool firstStart = initPreferences();
     initializeRestartReason();
 
-    serialInterface = new SerialInterface(preferences);
-    xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 2048, NULL, 5, &presenceDetectionTaskHandle, 1);
+    uint8_t serialEnable = preferences->getUChar(preference_serial_interface_enabled);
+    Serial.print(F("Serial interface "));
+    if(serialEnable == 0 || serialEnable == 2)
+    {
+        Serial.println(F("enabled"));
+        serialInterface = new SerialInterface(preferences);
+        xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 2048, NULL, 5, &presenceDetectionTaskHandle, 1);
+    }
+    else
+    {
+        Serial.println(F("disabled"));
+        xTaskCreatePinnedToCore(presenceDetectionTask, "prdet", 896, NULL, 5, &presenceDetectionTaskHandle, 1);
+    }
 
     if(preferences->getInt(preference_restart_timer) > 0)
     {

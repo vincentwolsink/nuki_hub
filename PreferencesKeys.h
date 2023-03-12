@@ -28,6 +28,7 @@
 #define preference_network_hardware_gpio "nwhwdt"
 #define preference_network_preload_ssid "wifiplssid"
 #define preference_network_preload_psk "wifiplpsk"
+#define preference_serial_interface_enabled "serena"
 #define preference_rssi_publish_interval "rssipb"
 #define preference_hostname "hostname"
 #define preference_network_timeout "nettmout"
@@ -64,7 +65,9 @@ private:
             preference_lock_max_keypad_code_count, preference_opener_max_keypad_code_count, preference_mqtt_ca,
             preference_mqtt_crt, preference_mqtt_key, preference_mqtt_hass_discovery,
             preference_ip_dhcp_enabled, preference_ip_address, preference_ip_subnet, preference_ip_gateway, preference_ip_dns_server,
-            preference_network_hardware, preference_network_hardware_gpio, preference_rssi_publish_interval,
+            preference_network_hardware, preference_network_hardware_gpio,
+            preference_network_preload_ssid, preference_network_preload_psk, preference_serial_interface_enabled,
+            preference_rssi_publish_interval,
             preference_hostname, preference_network_timeout, preference_restart_on_disconnect,
             preference_restart_timer, preference_restart_ble_beacon_lost, preference_query_interval_lockstate,
             preference_query_interval_configuration, preference_query_interval_battery, preference_query_interval_keypad,
@@ -78,12 +81,13 @@ private:
         preference_mqtt_user, preference_mqtt_password,
         preference_mqtt_ca, preference_mqtt_crt, preference_mqtt_key,
         preference_cred_user, preference_cred_password,
+        preference_network_preload_ssid, preference_network_preload_psk,
     };
     std::vector<char*> _boolPrefs =
     {
             preference_started_before, preference_mqtt_log_enabled, preference_lock_enabled, preference_opener_enabled,
             preference_restart_on_disconnect, preference_keypad_control_enabled, preference_register_as_app, preference_ip_dhcp_enabled,
-            preference_publish_authdata, preference_gpio_locking_enabled, preference_has_mac_saved, preference_publish_debug_info
+            preference_publish_authdata, preference_gpio_locking_enabled, preference_has_mac_saved, preference_publish_debug_info,
     };
 
     const bool isRedacted(const char* key) const
