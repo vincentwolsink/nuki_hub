@@ -8,8 +8,9 @@
 
 RTC_NOINIT_ATTR char WiFiDevice_reconfdetect[17];
 
-WifiDevice::WifiDevice(const String& hostname, Preferences* _preferences, const IPConfiguration* ipConfiguration)
-: NetworkDevice(hostname, ipConfiguration)
+WifiDevice::WifiDevice(const String& hostname, Preferences* preferences, const IPConfiguration* ipConfiguration)
+: NetworkDevice(hostname, ipConfiguration),
+  _preferences(preferences)
 {
     _startAp = strcmp(WiFiDevice_reconfdetect, "reconfigure_wifi") == 0;
 
@@ -68,6 +69,11 @@ void WifiDevice::initialize()
     _wm.setShowInfoUpdate(false);
     _wm.setMenu(wm_menu);
     _wm.setHostname(_hostname);
+
+    if(_preferences->getString(preference_network_preload_ssid) != "")
+    {
+        _wm.preloadWiFi(_preferences->getString(preference_network_preload_ssid), _preferences->getString(preference_network_preload_psk));
+    }
 
     if(!_ipConfiguration->dhcpEnabled())
     {

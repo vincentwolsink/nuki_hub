@@ -11,7 +11,7 @@
 class WifiDevice : public NetworkDevice
 {
 public:
-    WifiDevice(const String& hostname, Preferences* _preferences, const IPConfiguration* ipConfiguration);
+    WifiDevice(const String& hostname, Preferences* preferences, const IPConfiguration* ipConfiguration);
 
     const String deviceName() const override;
 
@@ -63,6 +63,7 @@ private:
     WiFiManager _wm;
     espMqttClient* _mqttClient = nullptr;
     espMqttClientSecure* _mqttClientSecure = nullptr;
+    Preferences* _preferences;
 
     bool _restartOnDisconnect = false;
     bool _startAp = false;

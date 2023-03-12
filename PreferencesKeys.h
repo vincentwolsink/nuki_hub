@@ -26,6 +26,8 @@
 #define preference_ip_dns_server "dnssrv"
 #define preference_network_hardware "nwhw"
 #define preference_network_hardware_gpio "nwhwdt"
+#define preference_network_preload_ssid "wifiplssid"
+#define preference_network_preload_psk "wifiplpsk"
 #define preference_rssi_publish_interval "rssipb"
 #define preference_hostname "hostname"
 #define preference_network_timeout "nettmout"

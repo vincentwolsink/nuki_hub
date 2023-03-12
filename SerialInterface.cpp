@@ -108,6 +108,11 @@ void SerialInterface::parse()
         _preferences->putInt(preference_network_hardware, _tokens[1].toInt());
         _preferences->putInt(preference_network_hardware_gpio, _tokens[2].toInt());
     }
+    else if(_tokens.size() >= 3 && _tokens[0] == "wifi")
+    {
+        _preferences->putString(preference_network_preload_ssid, _tokens[1]);
+        _preferences->putString(preference_network_preload_psk, _tokens[2]);
+    }
     else if(_tokens.size() >= 3 && _tokens[0] == "mqttbroker")
     {
         _preferences->putString(preference_mqtt_broker, _tokens[1]);
