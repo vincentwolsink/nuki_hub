@@ -111,7 +111,7 @@ void presenceDetectionTask(void *pvParameters)
         while(millis() < timeout)
         {
             serialInterface->update();
-            delay(200);
+            delay(50);
         }
     }
 }

@@ -86,6 +86,13 @@ void SerialInterface::parse()
 
     _authenticatedTs = millis() + 3 * 60 * 1000;
 
+    if(_awaitingSslBufferInput && _tokens.size() > 0 && _tokens[0] != "ssl_ca_cert_end" && _tokens[0] != "ssl_client_cert_end" && _tokens[0] != "ssl_client_key_end")
+    {
+        String line = _buffer;
+        line.replace('\r', '\n');
+        _sslBuffer.concat(line);
+    }
+
     // prevent unknown command output
     if(_tokens.size() >= 1 && _tokens[0] == "auth")
     {
@@ -98,7 +105,7 @@ void SerialInterface::parse()
         delay(200);
         restartEsp(RestartReason::RequestedViaSerialInterface);
     }
-    if(_tokens.size() >= 1 && _tokens[0] == "serialoff")
+    if(_tokens.size() >= 1 && _tokens[0] == "serial_off")
     {
         _preferences->putUChar(preference_serial_interface_enabled, 1);;
     }
@@ -148,6 +155,29 @@ void SerialInterface::parse()
     {
         _preferences->putString(preference_mqtt_user, _tokens[1]);
         _preferences->putString(preference_mqtt_password, _tokens[2]);
+    }
+    if(_tokens.size() >= 1 && (_tokens[0] == "ssl_ca_cert_start" || _tokens[0] == "ssl_client_cert_start" || _tokens[0] == "ssl_client_key_start") )
+    {
+        _sslBuffer = "";
+        _awaitingSslBufferInput = true;
+    }
+    if(_tokens.size() >= 1 && _tokens[0] == "ssl_ca_cert_end")
+    {
+        _preferences->putString(preference_mqtt_ca, _sslBuffer);
+        _sslBuffer = "";
+        _awaitingSslBufferInput = false;
+    }
+    if(_tokens.size() >= 1 && _tokens[0] == "ssl_client_cert_end")
+    {
+        _preferences->putString(preference_mqtt_crt, _sslBuffer);
+        _sslBuffer = "";
+        _awaitingSslBufferInput = false;
+    }
+    if(_tokens.size() >= 1 && _tokens[0] == "ssl_client_key_end")
+    {
+        _preferences->putString(preference_mqtt_key, _sslBuffer);
+        _sslBuffer = "";
+        _awaitingSslBufferInput = false;
     }
     else if(_tokens.size() >= 3 && _tokens[0] == "nukienable")
     {

@@ -22,6 +22,8 @@ private:
     unsigned long _lastAuthTs = 0;
 
     std::vector<String> _tokens;
+    String _sslBuffer;
+    bool _awaitingSslBufferInput = false;
 
     Preferences* _preferences = nullptr;
 };

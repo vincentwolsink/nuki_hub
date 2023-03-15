@@ -698,7 +698,7 @@ void WebCfgServer::buildMqttConfigHtml(String &response)
     printCheckBox(response, "RSTDISC", "Restart on disconnect", _preferences->getBool(preference_restart_on_disconnect));
     printInputField(response, "RSTTMR", "Restart timer (minutes; -1 to disable)", _preferences->getInt(preference_restart_timer), 10);
     printCheckBox(response, "MQTTLOG", "Enable MQTT logging", _preferences->getBool(preference_mqtt_log_enabled));
-    printCheckBox(response, "SERENA", "Enable Serial Interface", _preferences->getBool(preference_serial_interface_enabled) == 2);
+    printCheckBox(response, "SERENA", "Enable Serial Interface", _preferences->getUChar(preference_serial_interface_enabled) == 2);
     response.concat("</table>");
     response.concat("* If no encryption is configured for the MQTT broker, leave empty. Only supported for WiFi connections.<br><br>");
 
