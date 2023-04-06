@@ -1,6 +1,5 @@
 #include "Network.h"
 #include "PreferencesKeys.h"
-#include "MqttTopics.h"
 #include "networkDevices/W5500Device.h"
 #include "networkDevices/WifiDevice.h"
 #include "Logger.h"
@@ -11,22 +10,34 @@
 
 Network* Network::_inst = nullptr;
 unsigned long Network::_ignoreSubscriptionsTs = 0;
+bool _versionPublished = false;
 
 RTC_NOINIT_ATTR char WiFi_fallbackDetect[14];
 
-Network::Network(Preferences *preferences, const String& maintenancePathPrefix)
-: _preferences(preferences)
+Network::Network(Preferences *preferences, const String& maintenancePathPrefix, char* buffer, size_t bufferSize)
+: _preferences(preferences),
+  _buffer(buffer),
+  _bufferSize(bufferSize)
 {
     _inst = this;
     _hostname = _preferences->getString(preference_hostname);
 
     memset(_maintenancePathPrefix, 0, sizeof(_maintenancePathPrefix));
-
     size_t len = maintenancePathPrefix.length();
     for(int i=0; i < len; i++)
     {
         _maintenancePathPrefix[i] = maintenancePathPrefix.charAt(i);
     }
+
+    String connectionStateTopic = _preferences->getString(preference_mqtt_lock_path) + mqtt_topic_mqtt_connection_state;
+
+    memset(_mqttConnectionStateTopic, 0, sizeof(_mqttConnectionStateTopic));
+    len = connectionStateTopic.length();
+    for(int i=0; i < len; i++)
+    {
+        _mqttConnectionStateTopic[i] = connectionStateTopic.charAt(i);
+    }
+
     setupDevice();
 }
 
@@ -89,6 +100,10 @@ void Network::setupDevice()
                 Log->println(F("M5STACK PoESP32 Unit"));
                 _networkDeviceType = NetworkDeviceType::M5STACK_PoESP32_Unit;
                 break;
+            case 7:
+                Log->println(F("LilyGO T-ETH-POE"));
+                _networkDeviceType = NetworkDeviceType::LilyGO_T_ETH_POE;
+                break;
             default:
                 Log->println(F("Unknown hardware selected, falling back to Wifi."));
                 _networkDeviceType = NetworkDeviceType::WiFi;
@@ -109,6 +124,9 @@ void Network::setupDevice()
             break;
         case NetworkDeviceType::M5STACK_PoESP32_Unit:
             _device = new EthLan8720Device(_hostname, _preferences, _ipConfiguration, "M5STACK PoESP32 Unit", 1, 5, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_IP101);
+            break;
+        case NetworkDeviceType::LilyGO_T_ETH_POE:
+            _device = new EthLan8720Device(_hostname, _preferences, _ipConfiguration, "LilyGO T-ETH-POE", 0, -1, ETH_PHY_MDC, ETH_PHY_MDIO, ETH_PHY_TYPE, ETH_CLOCK_GPIO17_OUT);
             break;
         case NetworkDeviceType::WiFi:
             _device = new WifiDevice(_hostname, _preferences, _ipConfiguration);
@@ -289,6 +307,10 @@ bool Network::update()
             publishString(_maintenancePathPrefix, mqtt_topic_restart_reason_fw, getRestartReason().c_str());
             publishString(_maintenancePathPrefix, mqtt_topic_restart_reason_esp, getEspRestartReason().c_str());
         }
+        if (!_versionPublished) {
+            publishString(_maintenancePathPrefix, mqtt_topic_info_nuki_hub_version, NUKI_HUB_VERSION);
+            _versionPublished = true;
+        }
         _lastMaintenanceTs = ts;
     }
 
@@ -355,19 +377,20 @@ bool Network::reconnect()
         Log->println(F("Attempting MQTT connection"));
 
         _connectReplyReceived = false;
+
         if(strlen(_mqttUser) == 0)
         {
             Log->println(F("MQTT: Connecting without credentials"));
-            _device->mqttSetServer(_mqttBrokerAddr, port);
-            _device->mqttConnect();
         }
         else
         {
             Log->print(F("MQTT: Connecting with user: ")); Log->println(_mqttUser);
             _device->mqttSetCredentials(_mqttUser, _mqttPass);
-            _device->mqttSetServer(_mqttBrokerAddr, port);
-            _device->mqttConnect();
         }
+
+        _device->setWill(_mqttConnectionStateTopic, 1, true, _lastWillPayload);
+        _device->mqttSetServer(_mqttBrokerAddr, port);
+        _device->mqttConnect();
 
         unsigned long timeout = millis() + 60000;
 
@@ -396,11 +419,15 @@ bool Network::reconnect()
             if(_firstConnect)
             {
                 _firstConnect = false;
+                publishString(_maintenancePathPrefix, mqtt_topic_network_device, _device->deviceName().c_str());
                 for(const auto& it : _initTopics)
                 {
                     _device->mqttPublish(it.first.c_str(), MQTT_QOS_LEVEL, true, it.second.c_str());
                 }
             }
+
+            publishString(_maintenancePathPrefix, mqtt_topic_mqtt_connection_state, "online");
+
             _mqttConnectionState = 2;
             for(const auto& callback : _reconnectedCallbacks)
             {
@@ -578,7 +605,6 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
 
     if (discoveryTopic != "")
     {
-        char* jsonOut = new char[JSON_BUFFER_SIZE];
         DynamicJsonDocument json(JSON_BUFFER_SIZE);
 
         auto dev = json.createNestedObject("dev");
@@ -599,16 +625,14 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
         json["stat_unlocked"] = unlockedState;
         json["opt"] = "false";
 
-        serializeJson(json, reinterpret_cast<char(&)[JSON_BUFFER_SIZE]>(*jsonOut));
+        serializeJson(json, _buffer, _bufferSize);
 
         String path = discoveryTopic;
         path.concat("/lock/");
         path.concat(uidString);
         path.concat("/smartlock/config");
 
-        _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, jsonOut);
-
-        delete jsonOut;
+        _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, _buffer);
 
         // Battery critical
         publishHassTopic("binary_sensor",
@@ -683,6 +707,44 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
                          "",
                          { { "enabled_by_default", "true" } });
 
+        // MQTT Connected
+        publishHassTopic("binary_sensor",
+                         "mqtt_connected",
+                         uidString,
+                         "_mqtt_connected",
+                         "MQTT connected",
+                         name,
+                         baseTopic,
+                         mqtt_topic_mqtt_connection_state,
+                         deviceType,
+                         "",
+                         "",
+                         "diagnostic",
+                         "",
+                         {{"pl_on", "online"},
+                          {"pl_off", "offline"},
+                          {"ic", "mdi:lan-connect"}});
+
+        // Reset
+        publishHassTopic("switch",
+                         "reset",
+                         uidString,
+                         "_reset",
+                         "Reset",
+                         name,
+                         baseTopic,
+                         mqtt_topic_reset,
+                         deviceType,
+                         "",
+                         "",
+                         "diagnostic",
+                         mqtt_topic_reset,
+                         { { "ic", "mdi:restart" },
+                           { "pl_on", "1" },
+                           { "pl_off", "0" },
+                           { "state_on", "1" },
+                           { "state_off", "0" }});
+
         // Firmware version
         publishHassTopic("sensor",
                          "firmware_version",
@@ -700,7 +762,7 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
                          { { "enabled_by_default", "true" },
                            {"ic", "mdi:counter"}});
 
-        // Firmware version
+        // Hardware version
         publishHassTopic("sensor",
                          "hardware_version",
                          uidString,
@@ -709,6 +771,23 @@ void Network::publishHASSConfig(char* deviceType, const char* baseTopic, char* n
                          name,
                          baseTopic,
                          mqtt_topic_info_hardware_version,
+                         deviceType,
+                         "",
+                         "",
+                         "diagnostic",
+                         "",
+                         { { "enabled_by_default", "true" },
+                           {"ic", "mdi:counter"}});
+
+        // NUKI Hub version
+        publishHassTopic("sensor",
+                         "nuki_hub_version",
+                         uidString,
+                         "_nuki_hub__version",
+                         "NUKI Hub version",
+                         name,
+                         baseTopic,
+                         mqtt_topic_info_nuki_hub_version,
                          deviceType,
                          "",
                          "",
@@ -856,7 +935,7 @@ void Network::publishHASSConfigLedBrightness(char *deviceType, const char *baseT
 
 void Network::publishHASSConfigSoundLevel(char *deviceType, const char *baseTopic, char *name, char *uidString)
 {
-    publishHassTopic("number",
+    publishHassTopic("sensor",
                      "sound_level",
                      uidString,
                      "_sound_level",
@@ -872,6 +951,45 @@ void Network::publishHASSConfigSoundLevel(char *deviceType, const char *baseTopi
                      { { "ic", "mdi:volume-source" },
                        { "min", "0" },
                        { "max", "255" }});
+}
+
+
+void Network::publishHASSConfigAccessLog(char *deviceType, const char *baseTopic, char *name, char *uidString)
+{
+    publishHassTopic("sensor",
+                     "last_action_authorization",
+                     uidString,
+                     "_last_action_authorization",
+                     "Last action authorization",
+                     name,
+                     baseTopic,
+                     mqtt_topic_lock_log,
+                     deviceType,
+                     "",
+                     "",
+                     "diagnostic",
+                     "",
+                     { { "ic", "mdi:format-list-bulleted" },
+                                      { "value_template", "{{ (value_json|selectattr('type', 'eq', 'LockAction')|selectattr('action', 'in', ['Lock', 'Unlock', 'Unlatch'])|first).authorizationName }}" }});
+}
+
+void Network::publishHASSConfigKeypadAttemptInfo(char *deviceType, const char *baseTopic, char *name, char *uidString)
+{
+    publishHassTopic("sensor",
+                     "keypad_status",
+                     uidString,
+                     "_keypad_stats",
+                     "Keypad status",
+                     name,
+                     baseTopic,
+                     mqtt_topic_lock_log,
+                     deviceType,
+                     "",
+                     "",
+                     "diagnostic",
+                     "",
+                     { { "ic", "mdi:drag-vertical" },
+                                      { "value_template", "{{ (value_json|selectattr('type', 'eq', 'KeypadAction')|first).completionStatus }}" }});
 }
 
 void Network::publishHASSWifiRssiConfig(char *deviceType, const char *baseTopic, char *name, char *uidString)
@@ -945,8 +1063,7 @@ void Network::publishHassTopic(const String& mqttDeviceType,
 
     if (discoveryTopic != "")
     {
-        char *jsonOut = new char[JSON_BUFFER_SIZE];
-        DynamicJsonDocument json(JSON_BUFFER_SIZE);
+        DynamicJsonDocument json(_bufferSize);
 
         // Battery level
         json.clear();
@@ -980,10 +1097,21 @@ void Network::publishHassTopic(const String& mqttDeviceType,
 
         for(const auto& entry : additionalEntries)
         {
-            json[entry.first] = entry.second;
+            if(strcmp(entry.second, "true") == 0)
+            {
+                json[entry.first] = true;
+            }
+            else if(strcmp(entry.second, "false") == 0)
+            {
+                json[entry.first] = false;
+            }
+            else
+            {
+                json[entry.first] = entry.second;
+            }
         }
 
-        serializeJson(json, reinterpret_cast<char (&)[JSON_BUFFER_SIZE]>(*jsonOut));
+        serializeJson(json, _buffer, _bufferSize);
 
         String path = discoveryTopic;
         path.concat("/");
@@ -994,9 +1122,7 @@ void Network::publishHassTopic(const String& mqttDeviceType,
         path.concat(mattDeviceName);
         path.concat("/config");
 
-        _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, jsonOut);
-
-        delete jsonOut;
+        _device->mqttPublish(path.c_str(), MQTT_QOS_LEVEL, true, _buffer);
     }
 }
 
@@ -1083,9 +1209,9 @@ void Network::removeHASSConfig(char* uidString)
     }
 }
 
-void Network::removeHASSConfigDoorSensor(char *deviceType, const char *baseTopic, char *name, char *uidString)
+void Network::removeHASSConfigTopic(char *deviceType, char *name, char *uidString)
 {
-    removeHassTopic("binary_sensor", "door_sensor", uidString);
+    removeHassTopic(deviceType, name, uidString);
 }
 
 void Network::publishPresenceDetection(char *csv)

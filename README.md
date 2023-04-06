@@ -21,6 +21,8 @@ As an alternative to Wifi, the following ESP32 modules with wired ethernet are s
 [WT32-ETH01](http://www.wireless-tag.com/portfolio/wt32-eth01/)<br>
 [M5Stack Atom POE](https://docs.m5stack.com/en/atom/atom_poe)<br>
 [M5Stack PoESP32 Unit](https://docs.m5stack.com/en/unit/poesp32)<br>
+[LilyGO-T-ETH-POE](https://github.com/Xinyuan-LilyGO/LilyGO-T-ETH-POE)<br>
+
 
 ## Installation
 
@@ -51,7 +53,7 @@ Note: It is possible to run NUKI Hub alongside a NUKI Bridge. This is not recomm
 ## Support
 
 If you haven't ordered your NUKI product yet, you can support me by using my referrer code when placing your order:<br>
-REFPGVT4XJ5JW<br>
+REFXQ847A4ZDG<br>
 This will also give you a 30€ discount for your order.
 
 This project is free to use for everyone. However if you feel like donating, you can buy me a coffee at ko-fi.com:
@@ -141,8 +143,6 @@ NOTE: MQTT Discovery uses retained MQTT messages to store devices configurations
 
 ## Keypad control (optional)
 
-Note: Only devices listed in the [About section](#about) are currently supported.
-
 If a keypad is connected to the lock, keypad codes can be added, updated and removed.
 This has to enabled first in the configuration portal. Check "Enabled keypad control via MQTT" and save the configuration.
 After enabling keypad control, information about codes is published under "keypad/code_x", x starting from 0 up the number of configured codes.
@@ -187,8 +187,11 @@ The Pin configuration is:<br>
 
 ## Connecting via LAN (Optional)
 
-If you prefer to connect to the MQTT Broker via LAN instead of WiFi, you can use a Wiznet W5x00 Module (W5100, W5200, W5500 are supported).
-To connect, just wire the module and connect the LAN cable:
+If you prefer to connect to the MQTT Broker via LAN instead of WiFi, you either use one of the supported ESP32 modules (see about section above),
+or wire a seperate Wiznet W5x00 Module (W5100, W5200, W5500 are supported). To use a supported module, flash the firmware, connect via Wifi and
+select the correct network hardware in the MQTT and network settings section.<br>
+
+To wire an external W5x00 module to the ESP, use this wiring scheme:<br>
 
 - Connect W5x00 to ESP32 SPI0:<br>
 W5x00 SCK to GPIO18<br>
@@ -199,10 +202,10 @@ W5x00 CS/SS to GPIO5
 W5x00 reset to GPIO33
 - Last but not least, on the ESP32 bridge GPIO26 and GND. This let's the firmware know that a LAN Module is connected
 
-Wifi is now disabled, and the module doesn't boot into WifiManager anymore.
-
-As an alternative to do the wiring yourself, you can use an [M5Stack Atom POE](https://docs.m5stack.com/en/atom/atom_poe).
-After flashing, go to MQTT and network settings and select the module under "Network hardware".
+Wifi is now disabled, and the module doesn't boot into WifiManager anymore.<br>
+Note: Encrypted MQTT is only available for Wifi and LAN8720 modules, W5x00 modules don't support encryption 
+(that leaves Olimex, WT32-ETH01 and M5Stack PoESP32 Unit if encryption is desired). If encryption is needed, Olimex
+is the easiest option, since it has USB for flashing onboard.
 
 ## Troubleshooting
 
